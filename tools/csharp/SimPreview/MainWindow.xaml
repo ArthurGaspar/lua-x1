@@ -1,0 +1,20 @@
+<Window x:Class="SimPreview.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SimPreview" Width="1000" Height="700">
+    <DockPanel>
+        <Border DockPanel.Dock="Right" Width="220" Background="#222" Padding="8">
+            <StackPanel>
+                <TextBlock Text="Sim Preview (very simple)" Foreground="White" FontSize="16" Margin="0,0,0,12"/>
+                <Button x:Name="BtnSpawn" Content="Spawn Character" Margin="0,0,0,8" />
+                <Button x:Name="BtnCast" Content="Cast Ability (fireball_test)" Margin="0,0,0,8" />
+                <TextBlock Text="Logs:" Foreground="White" Margin="0,8,0,4"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Height="420">
+                    <TextBlock x:Name="LogOutput" TextWrapping="Wrap" Foreground="LightGray"/>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <Canvas x:Name="WorldCanvas" Background="#202020"/>
+    </DockPanel>
+</Window>

@@ -1,2 +1,13 @@
+build/
+docs/todo.txt
+java/
 libs/
+tools/csharp/CharAbilityEditor/bin
+tools/csharp/CharAbilityEditor/obj
+tools/csharp/SimPreview/bin
+tools/csharp/SimPreview/obj
 vendor/
+
+.env
+.vscode
+platinum_x1.sln

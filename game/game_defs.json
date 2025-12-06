@@ -1,0 +1,137 @@
+{
+  "characters": {
+    "hero_test": {
+      "id": "hero_test",
+      "displayName": "Test Hero",
+      "icon": "ui/hero_test_icon.png",
+      "role": "fighter",
+      "baseStats": {
+        "hp": 650,
+        "mana": 300,
+        "armor": 28,
+        "magicResist": 32,
+        "moveSpeed": 335
+      },
+      "abilities": ["fireball_test", "blink_test", "test_arcane_shield", "test_ultimate_overload"]
+    },
+
+    "rift_guardian": {
+      "id": "rift_guardian",
+      "displayName": "Rift Guardian",
+      "icon": "ui/rift_guardian_icon.png",
+      "role": "tank",
+      "baseStats": {
+        "hp": 900,
+        "mana": 250,
+        "armor": 40,
+        "magicResist": 35,
+        "moveSpeed": 315
+      },
+      "abilities": ["test_ground_slam", "test_stone_skin", "test_earth_grip", "test_worldbreaker"]
+    },
+
+    "shadow_wraith": {
+      "id": "shadow_wraith",
+      "displayName": "Shadow Wraith",
+      "icon": "ui/shadow_wraith_icon.png",
+      "role": "assassin",
+      "baseStats": {
+        "hp": 550,
+        "mana": 420,
+        "armor": 20,
+        "magicResist": 30,
+        "moveSpeed": 345
+      },
+      "abilities": ["test_shadow_step", "test_soul_cut", "test_fade", "test_reaper_form"]
+    },
+
+    "stormcaller": {
+      "id": "stormcaller",
+      "displayName": "Stormcaller",
+      "icon": "ui/stormcaller_icon.png",
+      "role": "mage",
+      "baseStats": {
+        "hp": 600,
+        "mana": 480,
+        "armor": 22,
+        "magicResist": 28,
+        "moveSpeed": 330
+      },
+      "abilities": ["test_spark_bolt", "test_chain_lightning", "test_wind_barrier", "test_tempest_overdrive"]
+    }
+  },
+
+  "abilities": {
+    "fireball_test": {
+      "id": "fireball_test",
+      "displayName": "Fireball",
+      "cooldown": 6.0,
+      "manaCost": 40,
+      "script": "abilities/fireball_test.lua"
+    },
+
+    "blink_test": {
+      "id": "blink_test",
+      "displayName": "Blink",
+      "cooldown": 12.0,
+      "manaCost": 35,
+      "script": "abilities/blink_test.lua"
+    },
+
+    "arcane_shield": {
+      "id": "arcane_shield",
+      "displayName": "Arcane Shield",
+      "cooldown": 16.0,
+      "manaCost": 50,
+      "script": "abilities/test_arcane_shield.lua"
+    },
+
+    "ultimate_overload": {
+      "id": "ultimate_overload",
+      "displayName": "Overload",
+      "cooldown": 75.0,
+      "manaCost": 100,
+      "script": "abilities/test_ultimate_overload.lua"
+    },
+
+    "ground_slam": {
+      "id": "ground_slam",
+      "displayName": "Ground Slam",
+      "cooldown": 8.0,
+      "manaCost": 25,
+      "script": "abilities/test_ground_slam.lua"
+    },
+
+    "stone_skin": {
+      "id": "stone_skin",
+      "displayName": "Stone Skin",
+      "cooldown": 18.0,
+      "manaCost": 30,
+      "script": "abilities/test_stone_skin.lua"
+    },
+
+    "earth_grip": {
+      "id": "earth_grip",
+      "displayName": "Earth Grip",
+      "cooldown": 14.0,
+      "manaCost": 45,
+      "script": "abilities/test_earth_grip.lua"
+    },
+
+    "shadow_step": {
+      "id": "shadow_step",
+      "displayName": "Shadow Step",
+      "cooldown": 10.0,
+      "manaCost": 30,
+      "script": "abilities/test_shadow_step.lua"
+    },
+
+    "spark_bolt": {
+      "id": "spark_bolt",
+      "displayName": "Spark Bolt",
+      "cooldown": 4.0,
+      "manaCost": 20,
+      "script": "abilities/test_spark_bolt.lua"
+    }
+  }
+}
