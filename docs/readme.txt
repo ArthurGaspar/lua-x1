@@ -31,6 +31,7 @@
 /docs
 /docs/design	# game design documents (GDDs)
 /docs/tech	# technical architecture docs
+/docs/tech/lua_api.md   # lua API for game scripts
 /docs/architecture.md	# engine overview
 /docs/protocols.md	# network overview
 /game	# game-specific code + scripts
