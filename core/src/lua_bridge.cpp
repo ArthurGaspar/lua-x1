@@ -8,7 +8,7 @@
 // Replace them with the engine functions from the deterministic_sim.cpp.
 // They are declared extern here can be implemented in engine code.
 
-extern bool Engine_GetEntityPosition(int entity_id, double &out_x, double &out_y);
+extern bool Engine_GetPosition(int entity_id, double &out_x, double &out_y);
 extern bool Engine_SetMovement(int entity_id, double vx, double vy);
 extern bool Engine_ApplyDamage(int source_id, int target_id, int amount, const char* damage_type);
 extern bool Engine_ApplyKnockback(int source_id, int target_id, double dir_x, double dir_y, double force, double duration);
@@ -137,7 +137,7 @@ int LuaBridge::l_GetPosition(lua_State* L) {
     }
     int entity_id = (int)lua_tointeger(L, 1);
     double x = 0.0, y = 0.0;
-    bool ok = Engine_GetEntityPosition(entity_id, x, y);
+    bool ok = Engine_GetPosition(entity_id, x, y);
     if (!ok) {
         lua_pushnil(L);
         lua_pushnil(L);
@@ -296,7 +296,7 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     // 1. If spawn pos not specified, try to use caster position
     if (spawn_x == 0.0 && spawn_y == 0.0) {
         double sx=0.0, sy=0.0;
-        if (Engine_GetEntityPosition(caster, sx, sy)) {
+        if (Engine_GetPosition(caster, sx, sy)) {
             spawn_x = sx;
             spawn_y = sy;
         }
