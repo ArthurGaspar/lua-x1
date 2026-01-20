@@ -16,8 +16,6 @@ extern bool Engine_ApplyKnockback(int source_id, int target_id, double dir_x, do
 // returns new projectile entity id (>0) or -1 on error
 extern int Engine_SpawnProjectile(int caster_id, double spawn_x, double spawn_y, double dir_x, double dir_y, double speed, double radius, double life_time, const char* on_hit_cb);
 
-extern bool Engine_RegisterTimer(const char* callback_name, double delay_seconds, int repeat_count);
-
 // -------------------------------------------------------------
 
 // lua_pop is (L,n) (n >= 1)
@@ -120,7 +118,6 @@ void LuaBridge::registerCoreBindings() {
     lua_register(L, "ApplyDamage", LuaBridge::l_ApplyDamage);
     lua_register(L, "ApplyKnockback", LuaBridge::l_ApplyKnockback);
     lua_register(L, "SpawnProjectile", LuaBridge::l_SpawnProjectile);
-    lua_register(L, "RegisterTimer", LuaBridge::l_RegisterTimer);
 
     // (Optionally) add a small helper table
     // e.g. could create Game API table: game.GetPosition(...) etc.
@@ -325,22 +322,5 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     }
 
     lua_pushinteger(L, proj_id);
-    return 1;
-}
-
-// RegisterTimer(callback_name, delay_seconds, repeat_count)
-int LuaBridge::l_RegisterTimer(lua_State* L) {
-    if (!lua_isstring(L,1) || !lua_isnumber(L,2)) {
-        lua_pushstring(L, "RegisterTimer: expected (string callback_name, number delay_seconds, optional int repeat_count)");
-        lua_error(L);
-        return 0;
-    }
-    const char* cb = lua_tostring(L,1);
-    double delay = lua_tonumber(L,2);
-    int repeat = 1;
-    if (lua_gettop(L) >= 3 && lua_isinteger(L,3)) repeat = (int)lua_tointeger(L,3);
-
-    bool ok = Engine_RegisterTimer(cb, delay, repeat);
-    lua_pushboolean(L, ok ? 1 : 0);
     return 1;
 }

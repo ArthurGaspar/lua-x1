@@ -105,26 +105,6 @@ end
 
 ---
 
-### `RegisterTimer(callback_name, delay_seconds, repeat_count)`
-
-Helper to schedule future Lua callbacks. (Engine must implement scheduling; callbacks are invoked on the main tick thread.)
-
-**Example**
-
-```lua
-RegisterTimer("ExplodeDelayed", 1.5, 1)
-```
-
-Callback signature:
-
-```lua
-function ExplodeDelayed(context_table)
-  -- context_table will include fields the engine provided (like caster, pos, etc.)
-end
-```
-
----
-
 ## Ability script pattern
 
 A minimal ability script must provide the `cast` function. The engine calls `cast(caster_id, target_x, target_y)` when the player casts. `cast` should either call engine functions (preferred) or return a table describing results.
