@@ -163,16 +163,15 @@ int LuaBridge::l_SetMovement(lua_State* L) {
 // ApplyDamage(source_id, target_id, amount, damage_type)
 int LuaBridge::l_ApplyDamage(lua_State* L) {
     int args = lua_gettop(L);
-    if (args < 3 || !lua_isinteger(L,1) || !lua_isinteger(L,2) || !lua_isnumber(L,3)) {
-        lua_pushstring(L, "ApplyDamage: expected (int source_id, int target_id, number amount, optional string damage_type)");
+    if (args < 4 || !lua_isinteger(L,1) || !lua_isinteger(L,2) || !lua_isnumber(L,3) || !lua_isstring(L,4)) {
+        lua_pushstring(L, "ApplyDamage: expected (int source_id, int target_id, number amount, string damage_type)");
         lua_error(L);
         return 0;
     }
     int source = (int)lua_tointeger(L,1);
     int target = (int)lua_tointeger(L,2);
     int amount = (int)lua_tonumber(L,3);
-    const char* dtype = "physical";
-    if (args >= 4 && lua_isstring(L,4)) dtype = lua_tostring(L,4);
+    const char* dtype = lua_tostring(L,4);
     bool ok = Engine_ApplyDamage(source, target, amount, dtype);
     lua_pushboolean(L, ok ? 1 : 0);
     return 1;
