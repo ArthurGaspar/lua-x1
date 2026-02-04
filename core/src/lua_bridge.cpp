@@ -8,13 +8,13 @@
 // Replace them with the engine functions from the deterministic_sim.cpp.
 // They are declared extern here can be implemented in engine code.
 
-extern bool Engine_GetPosition(int entity_id, double &out_x, double &out_y);
-extern bool Engine_SetMovement(int entity_id, double vx, double vy);
+extern bool Engine_GetPosition(int entity_id, float &out_x, float &out_y);
+extern bool Engine_SetMovement(int entity_id, float vx, float vy);
 extern bool Engine_ApplyDamage(int source_id, int target_id, int amount, const char* damage_type);
-extern bool Engine_ApplyKnockback(int source_id, int target_id, double dir_x, double dir_y, double force, double duration);
+extern bool Engine_ApplyKnockback(int source_id, int target_id, float dir_x, float dir_y, float force, float duration);
 
 // returns new projectile entity id (>0) or -1 on error
-extern int Engine_SpawnProjectile(int caster_id, double spawn_x, double spawn_y, double dir_x, double dir_y, double speed, double radius, double life_time, const char* on_hit_cb);
+extern int Engine_SpawnProjectile(int caster_id, float spawn_x, float spawn_y, float dir_x, float dir_y, float speed, float radius, float life_time, const char* on_hit_cb);
 
 // -------------------------------------------------------------
 
@@ -42,7 +42,7 @@ bool LuaBridge::doFile(const std::string &path) {
     return true;
 }
 
-bool LuaBridge::callCastFunction(const std::string &fnName, int caster_id, double target_x, double target_y) {
+bool LuaBridge::callCastFunction(const std::string &fnName, int caster_id, float target_x, float target_y) {
     lua_getglobal(L, fnName.c_str()); // push function
     if (!lua_isfunction(L, -1)) {
         lua_pop(L,1);
@@ -88,7 +88,7 @@ bool LuaBridge::callCastFunction(const std::string &fnName, int caster_id, doubl
 
 // ------------------- Helpers --------------------
 
-bool LuaBridge::checkFieldNumber(lua_State* L, int idx, const char* key, double &out) {
+bool LuaBridge::checkFieldNumber(lua_State* L, int idx, const char* key, float &out) {
     lua_getfield(L, idx, key);
     if (!lua_isnumber(L, -1)) {
         lua_pop(L,1);
@@ -133,7 +133,7 @@ int LuaBridge::l_GetPosition(lua_State* L) {
         return 0;
     }
     int entity_id = (int)lua_tointeger(L, 1);
-    double x = 0.0, y = 0.0;
+    float x = 0.0, y = 0.0;
     bool ok = Engine_GetPosition(entity_id, x, y);
     if (!ok) {
         lua_pushnil(L);
@@ -153,8 +153,8 @@ int LuaBridge::l_SetMovement(lua_State* L) {
         return 0;
     }
     int entity_id = (int)lua_tointeger(L, 1);
-    double vx = lua_tonumber(L, 2);
-    double vy = lua_tonumber(L, 3);
+    float vx = lua_tonumber(L, 2);
+    float vy = lua_tonumber(L, 3);
     bool ok = Engine_SetMovement(entity_id, vx, vy);
     lua_pushboolean(L, ok ? 1 : 0);
     return 1;
@@ -189,13 +189,13 @@ int LuaBridge::l_ApplyKnockback(lua_State* L) {
     }
     int source = (int)lua_tointeger(L,1);
     int target = (int)lua_tointeger(L,2);
-    double dx = lua_tonumber(L,3);
-    double dy = lua_tonumber(L,4);
-    double force = lua_tonumber(L,5);
-    double duration = lua_tonumber(L,6);
+    float dx = lua_tonumber(L,3);
+    float dy = lua_tonumber(L,4);
+    float force = lua_tonumber(L,5);
+    float duration = lua_tonumber(L,6);
 
     // normalize dir
-    double len = std::sqrt(dx*dx + dy*dy);
+    float len = std::sqrt(dx*dx + dy*dy);
     if (len == 0.0) { dx = 1.0; dy = 0.0; len = 1.0; }
     dx /= len; dy /= len; // unit vectors
 
@@ -224,7 +224,7 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     lua_pop(L,1);
 
     // spawn pos.x, pos.y
-    double spawn_x = 0.0, spawn_y = 0.0;
+    float spawn_x = 0.0, spawn_y = 0.0;
     lua_getfield(L, 1, "pos");
     if (lua_istable(L, -1)) {
         lua_getfield(L, -1, "x");
@@ -238,7 +238,7 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
 
     // [REQUIRED] dir OR target
     // dir.x, dir.y
-    double dir_x = 0.0, dir_y = 0.0;
+    float dir_x = 0.0, dir_y = 0.0;
     bool have_dir = false;
     lua_getfield(L, 1, "dir");
     if (lua_istable(L, -1)) {
@@ -253,7 +253,7 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     lua_pop(L,1);
     // target_pos (optional) - if dir not provided use target_pos - spawn->target vector
     bool have_target_pos = false;
-    double target_x = 0.0, target_y = 0.0;
+    float target_x = 0.0, target_y = 0.0;
     lua_getfield(L, 1, "target_pos");
     if (lua_istable(L, -1)) {
         lua_getfield(L, -1, "x");
@@ -267,7 +267,7 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     lua_pop(L,1);
 
     // [REQUIRED] speed
-    double speed = 0.0;
+    float speed = 0.0;
     if (!checkFieldNumber(L, 1, "speed", speed)) {
         lua_pushstring(L, "SpawnProjectile: 'speed' required (number)");
         lua_error(L);
@@ -275,9 +275,9 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     }
 
     // radius, lifetime
-    double radius = 0.0;
+    float radius = 0.0;
     checkFieldNumber(L, 1, "radius", radius);
-    double life_time = 0.0;
+    float life_time = 0.0;
     checkFieldNumber(L, 1, "life_time", life_time);
 
     // on_hit callback name (string)
@@ -291,7 +291,7 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     // Cases where optionals are not available
     // 1. If spawn pos not specified, try to use caster position
     if (spawn_x == 0.0 && spawn_y == 0.0) {
-        double sx=0.0, sy=0.0;
+        float sx=0.0, sy=0.0;
         if (Engine_GetPosition(caster, sx, sy)) {
             spawn_x = sx;
             spawn_y = sy;
@@ -299,15 +299,15 @@ int LuaBridge::l_SpawnProjectile(lua_State* L) {
     }
     // 2. If dir not provided but target_pos is provided, compute dir
     if (!have_dir && have_target_pos) {
-        double dx = target_x - spawn_x;
-        double dy = target_y - spawn_y;
-        double len = std::sqrt(dx*dx + dy*dy);
+        float dx = target_x - spawn_x;
+        float dy = target_y - spawn_y;
+        float len = std::sqrt(dx*dx + dy*dy);
         if (len == 0.0) { dir_x = 1.0; dir_y = 0.0; }
         else { dir_x = dx/len; dir_y = dy/len; }
     }
 
     // final normalization of SpawnProjectiles
-    double dlen = std::sqrt(dir_x*dir_x + dir_y*dir_y);
+    float dlen = std::sqrt(dir_x*dir_x + dir_y*dir_y);
     if (dlen == 0.0) { dir_x = 1.0; dir_y = 0.0; }
     else { dir_x /= dlen; dir_y /= dlen; }
 
