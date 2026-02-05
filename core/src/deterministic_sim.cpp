@@ -19,6 +19,7 @@
 #include <unordered_map>
 #include <cstring>
 #include <cassert>
+#include <cmath>
 
 // ---------- Config ----------
 constexpr int SERVER_TICK_RATE = 30; // 30t/s
@@ -35,16 +36,27 @@ inline float to_world(int32_t fixed) {
 }
 
 // ---------- Entity State ----------
+enum class EntityType : uint8_t {
+    Character = 0,
+    Projectile = 1
+};
+
 struct EntityState {
     uint32_t id = 0;
+    EntityType type = EntityType::Character;
     int32_t pos_x = 0; // fixed-point
     int32_t pos_y = 0;
     int32_t vel_x = 0; // fixed-point units PER SIMULATION TICK
     int32_t vel_y = 0;
     int32_t health = 0;
+    int32_t radius = 0;
+    int32_t lifetime_ticks = -1; // -1 = infinite; >0 = how many life ticks
     uint8_t flags = 0;
 
     constexpr EntityState() = default; // allows for compile-time instances of struct
+
+    // Callbacks (simplified for demo)
+    // ex.: std::string on_hit_callback; 
 
     constexpr bool operator==(EntityState const& o) const {
         return id == o.id &&
@@ -53,7 +65,8 @@ struct EntityState {
                vel_x == o.vel_x &&
                vel_y == o.vel_y &&
                health == o.health &&
-               flags == o.flags;
+               flags == o.flags &&
+               type == o.type;
     }
 
     constexpr bool operator!=(EntityState const& o) const {
@@ -242,34 +255,140 @@ inline int32_t approach_zero(int32_t current_val, int32_t amount) {
 void simulateEntityTick(EntityState &e) {
     e.pos_x += e.vel_x;
     e.pos_y += e.vel_y;
+    
+    // Friction to character only. Projectiles fly constantly
+    if (e.type == EntityType::Character) {
+        e.vel_x = approach_zero(e.vel_x, FRICTION_PER_TICK);
+        e.vel_y = approach_zero(e.vel_y, FRICTION_PER_TICK);
+    }
 
-    // simple friction: gradually reduce vel to zero deterministically
-    e.vel_x = approach_zero(e.vel_x, FRICTION_PER_TICK);
-    e.vel_y = approach_zero(e.vel_y, FRICTION_PER_TICK);
+    if (e.lifetime_ticks > 0) {
+        e.lifetime_ticks--;
+    }
 }
 
 // ---------- Demo server class ----------
 class DemoServer {
+private:
+    static DemoServer* = s_instance;
+
+    uint32_t server_tick;
+    uint32_t next_entity_id; // ID Generator
+    std::unordered_map<uint32_t, EntityState> entities;
+    std::unordered_map<uint32_t, InputQueue> input_queues;
+    std::unordered_map<uint32_t, EntityState> prev_snapshot_map; // For delta calc
+    std::unordered_map<uint32_t, EntityState> prev_snapshot_map_before_tick;
+
 public:
-    DemoServer() : server_tick(0) {
-        // Single entity for this demo
+    DemoServer() : server_tick(0), next_entity_id(1001) {
+        s_instance = this;
+
+        // First char
         EntityState e;
-        e.id = 1001;
+        e.id = next_entity_id++;
+        e.type = EntityType::Character;
         e.pos_x = to_fixed(0.0f);
         e.pos_y = to_fixed(0.0f);
         e.vel_x = 0;
         e.vel_y = 0;
         e.health = 100;
         e.flags = 0;
+        e.radius = to_fixed(0.5f);
         entities[e.id] = e;
         prev_snapshot_map.clear();
     }
 
+    ~DemoServer() {
+        if (s_instance == this) s_instance = nullptr;
+    }
+
     // In a real engine, this would probably be connected to a UDP socket listener
+    // Singleton Accessor
+    static DemoServer* GetInstance() { return s_instance; }
     bool receiveInput(ClientInput const& in) {
         // ensure a queue exists for this client
         auto &q = input_queues[in.client_id];
         return q.push(in);
+    }
+
+    // Gameplay API
+
+    // it = entities.find(id) which is key
+    // second... = specific value
+    // map has KEY -> VALUE
+
+    bool GetPosition(int id, float &x, float &y) {
+        auto it = entities.find(id);
+        if (it == entities.end()) return false;
+        x = to_world(it->second.pos_x);
+        y = to_world(it->second.pos_y);
+        return true;
+    }
+
+    bool SetMovement(int id, float vx, float vy) {
+        auto it = entities.find(id);
+        if (it == entities.end()) return false;
+        // world-units/sec to fixed-units/tick
+        float ticks_per_sec = (float)SERVER_TICK_RATE;
+        it->second.vel_x = to_fixed(vx / ticks_per_sec);
+        it->second.vel_y = to_fixed(vy / ticks_per_sec);
+        return true;
+    }
+
+    bool ApplyDamage(int source_id, int target_id, int amount, const char* damage_type) {
+        auto it = entities.find(target_id);
+        if (it == entities.end()) return false;
+        
+        it->second.health -= amount;
+        if (it->second.health < 0) it->second.health = 0;
+        std::cout << "[Gameplay] Entity " << target_id << " took " << amount << " dmg (" << damage_type << ") from Entity " << source_id << "\n";
+        return true;
+    }
+
+    bool ApplyKnockback(int source_id, int target_id, float dir_x, float dir_y, float force, float duration) {
+        auto it = entities.find(target_id);
+        if (it == entities.end()) return false;
+
+        float ticks_per_sec = (float)SERVER_TICK_RATE;
+        
+        float len = std::sqrt(dir_x*dir_x + dir_y*dir_y);
+        if(len > 0) { dir_x /= len; dir_y /= len; }
+
+        int32_t fx = to_fixed((dir_x * force) / ticks_per_sec);
+        int32_t fy = to_fixed((dir_y * force) / ticks_per_sec);
+
+        it->second.vel_x += fx;
+        it->second.vel_y += fy;
+
+        std::cout << "[Gameplay] Knockback applied to " << target_id << " by " << source_id 
+                  << " | Force: " << force << " | Duration: " << duration << "s\n";
+        return true;
+    }
+
+    int SpawnProjectile(int caster_id, float x, float y, float dx, float dy, float speed, float radius, float life_time) {
+        EntityState proj;
+        proj.id = next_entity_id++;
+        proj.type = EntityType::Projectile;
+        proj.pos_x = to_fixed(x);
+        proj.pos_y = to_fixed(y);
+        
+        // Speed is units/sec
+        float ticks_per_sec = (float)SERVER_TICK_RATE;
+        float vel_per_tick = speed / ticks_per_sec;
+        
+        proj.vel_x = to_fixed(dx * vel_per_tick);
+        proj.vel_y = to_fixed(dy * vel_per_tick);
+        
+        proj.radius = to_fixed(radius);
+        
+        if (life_time > 0) {
+            proj.lifetime_ticks = static_cast<int32_t>(life_time * ticks_per_sec);
+        }
+
+        entities[proj.id] = proj;
+        
+        std::cout << "[Gameplay] Spawned Projectile " << proj.id << " at " << x << "," << y << "\n";
+        return (int)proj.id;
     }
 
     // Run single tick
@@ -279,7 +398,9 @@ public:
             uint32_t client = kv.first;
             InputQueue &q = kv.second;
             auto inputs = q.popForTick(server_tick);
-            uint32_t ent_id = 1001; // ugly hardcode
+            // For demo: map client_id to entity_id directly (hardcode)
+            // Hardcoded client 1 controls entity 1001
+            uint32_t ent_id = 1001;
             auto it = entities.find(ent_id);
             if (it != entities.end() && !inputs.empty()) {
                 applyInputsToEntity(it->second, inputs);
@@ -287,11 +408,20 @@ public:
         }
 
         // 2) simulate physics & logic for all entities
+        std::vector<uint32_t> to_remove;
         for (auto &kv : entities) {
             simulateEntityTick(kv.second);
+
+            // lifetime check
+            if (kv.second.type == EntityType::Projectile && kv.second.lifetime_ticks == 0) {
+                 to_remove.push_back(kv.first);
+            }
         }
 
+        for(auto id : to_remove) entities.erase(id);
+
         // 3) produce snapshot
+
         Snapshot snap;
         snap.server_tick = server_tick;
         for (auto const& kv : entities) snap.entities.push_back(kv.second);
@@ -314,14 +444,6 @@ public:
                   << " (entities=" << snap.entities.size() << ")\n";
     }
 
-private:
-    uint32_t server_tick;
-    std::unordered_map<uint32_t, EntityState> entities;
-    std::unordered_map<uint32_t, InputQueue> input_queues;
-    std::unordered_map<uint32_t, EntityState> prev_snapshot_map;
-    std::unordered_map<uint32_t, EntityState> prev_snapshot_map_before_tick;
-
-public:
     // helper to get last-sent snapshot
     std::unordered_map<uint32_t, EntityState> const& getPrevBefore() const { return prev_snapshot_map_before_tick; }
     
@@ -330,7 +452,40 @@ public:
         prev_snapshot_map_before_tick.clear();
         for (auto const& e : s.entities) prev_snapshot_map_before_tick[e.id] = e;
     }
+
 };
+
+// ---------- Extern engine functions ----------
+// These act as the bridge between Lua (C-style) and DemoServer (C++ Class)
+
+extern "C" { // Use C linkage if Lua library was compiled as C, usually C++ is fine but this is safer
+
+bool Engine_GetPosition(int entity_id, float &out_x, float &out_y) {
+    if (!DemoServer::GetInstance()) return false;
+    return DemoServer::GetInstance()->GetPosition(entity_id, out_x, out_y);
+}
+
+bool Engine_SetMovement(int entity_id, float vx, float vy) {
+    if (!DemoServer::GetInstance()) return false;
+    return DemoServer::GetInstance()->SetMovement(entity_id, vx, vy);
+}
+
+bool Engine_ApplyDamage(int source_id, int target_id, int amount, const char* damage_type) {
+    if (!DemoServer::GetInstance()) return false;
+    return DemoServer::GetInstance()->ApplyDamage(source_id, target_id, amount, damage_type);
+}
+
+bool Engine_ApplyKnockback(int source_id, int target_id, float dir_x, float dir_y, float force, float duration) {
+    if (!DemoServer::GetInstance()) return false;
+    return DemoServer::GetInstance()->ApplyKnockback(source_id, target_id, dir_x, dir_y, force, duration);
+}
+
+int Engine_SpawnProjectile(int caster_id, float spawn_x, float spawn_y, float dir_x, float dir_y, float speed, float radius, float life_time, const char* on_hit_cb) {
+    if (!DemoServer::GetInstance()) return -1;
+    return DemoServer::GetInstance()->SpawnProjectile(caster_id, spawn_x, spawn_y, dir_x, dir_y, speed, radius, life_time);
+}
+
+}
 
 // ---------- Demo main: simulate a few ticks with synthetic inputs ----------
 // EXPECTED RESULTS
@@ -339,7 +494,14 @@ public:
 // Ticks 10-39 = delta is even smaller as there is nothing changing
 int main() {
     using namespace std::chrono;
-    DemoServer server;
+    DemoServer server; // This constructor sets s_instance
+
+    std::cout << "Server started.\n";
+
+    // Lua/Engine API Test
+    std::cout << "--- API Test: Spawning Projectile ---\n";
+    int proj_id = Engine_SpawnProjectile(1001, 0.0, 0.0, 1.0, 0.0, 10.0, 0.5, 2.0, "explode");
+    Engine_ApplyKnockback(proj_id, 1001, -1.0, 0.0, 5.0, 0.2);
 
     // create synthetic client input sequence for client 1 to move right for 10 ticks
     // after tick 10, it does not move anymore
@@ -356,16 +518,13 @@ int main() {
         in.move_dy = 0;
         in.action_flags = 0;
         server.receiveInput(in);
-
-        if (!server.receiveInput(in)) {
-            std::cerr << "Warning: dropped input for tick " << t << "\n";
-        }
     }
 
     // We'll run 40 ticks and show snapshots
     Snapshot last_sent_snap; // empty for tick 0
     bool has_last = false;
 
+    // run sim
     uint64_t tick_ns = TICK_NS;
     auto next_tick_time = steady_clock::now();
 
@@ -378,11 +537,12 @@ int main() {
 
         Snapshot snap = server.tick();
 
+        // Print status
         for (auto const& e : snap.entities) {
-            std::cout << "[Tick " << snap.server_tick << "] Entity " << e.id
+            std::cout << "[Tick " << snap.server_tick << "] Entity ID " << e.id
+                      << " Type: " << (e.type == EntityType::Character ? "PLR" : "PRJ")
                       << " pos=(" << to_world(e.pos_x) << "," << to_world(e.pos_y) << ")"
                       << " vel=(" << to_world(e.vel_x) << "," << to_world(e.vel_y) << ")\n";
-        }
 
         auto full = serializeFull(snap);
         auto delta = serializeDelta(snap, server.getPrevBefore());
@@ -390,6 +550,7 @@ int main() {
 
         last_sent_snap = snap;
         has_last = true;
+        }
     }
     std::cout << "Demo finished.\n";
     return 0;

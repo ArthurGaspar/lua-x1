@@ -75,7 +75,7 @@ Spawn a projectile; `params_table` must be a table with these fields (recommende
 * `speed` (number) — units/sec (required)
 * `radius` (number) — collision radius, world units (optional)
 * `life_time` (number) — seconds until auto-despawn (optional)
-* `on_hit_cb` (string) — name of a Lua callback (engine will call the global function `on_hit` with signature below); alternatively, engine can generate events consumed by scripts
+* `on_hit_cb` (string) — name of a Lua callback (engine will call the global function `on_hit` with signature below); alternatively, engine can generate events consumed by scripts (optional)
 * `tags` (table) — optional metadata
 
 **Return**: integer projectile id on success.
