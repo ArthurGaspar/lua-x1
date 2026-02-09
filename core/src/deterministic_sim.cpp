@@ -454,6 +454,7 @@ public:
     }
 
 };
+DemoServer* DemoServer::s_instance = nullptr;
 
 // ---------- Extern engine functions ----------
 // These act as the bridge between Lua (C-style) and DemoServer (C++ Class)
