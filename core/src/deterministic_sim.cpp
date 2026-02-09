@@ -270,7 +270,7 @@ void simulateEntityTick(EntityState &e) {
 // ---------- Demo server class ----------
 class DemoServer {
 private:
-    static DemoServer* = s_instance;
+    static DemoServer* s_instance;
 
     uint32_t server_tick;
     uint32_t next_entity_id; // ID Generator
