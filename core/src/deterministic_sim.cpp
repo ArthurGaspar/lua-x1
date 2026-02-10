@@ -233,6 +233,12 @@ constexpr int32_t MAX_SPEED_FIXED_PER_TICK = static_cast<int32_t>( (5.0f * POS_S
 constexpr int32_t FRICTION_PER_TICK = 25; // 0.025 world units per tick drag
 
 void applyInputsToEntity(EntityState &e, std::vector<ClientInput> const& inputs) {
+    if (!inputs.empty()) {
+        std::cout << "[DEBUG] applyInputsToEntity to " << e.id 
+                  << ", current vel=(" << e.vel_x << "," << e.vel_y 
+                  << ") = (" << to_world(e.vel_x) << "," << to_world(e.vel_y) << ")\n";
+    }
+
     for (auto const& in : inputs) {
         if (in.move_dx != 0 || in.move_dy != 0) {
             int32_t nx = static_cast<int32_t>(in.move_dx); // -127..127
@@ -264,6 +270,9 @@ void simulateEntityTick(EntityState &e) {
 
     if (e.lifetime_ticks > 0) {
         e.lifetime_ticks--;
+        if (e.lifetime_ticks == 0) {
+            // Mark for removal (need to handle this in DemoServer::tick)
+        }
     }
 }
 
@@ -349,19 +358,33 @@ public:
         auto it = entities.find(target_id);
         if (it == entities.end()) return false;
 
-        float ticks_per_sec = (float)SERVER_TICK_RATE;
+        // float ticks_per_sec = (float)SERVER_TICK_RATE;
         
         float len = std::sqrt(dir_x*dir_x + dir_y*dir_y);
-        if(len > 0) { dir_x /= len; dir_y /= len; }
+        if(len > 0) { 
+            dir_x /= len; dir_y /= len;
+        }
 
-        int32_t fx = to_fixed((dir_x * force) / ticks_per_sec);
-        int32_t fy = to_fixed((dir_y * force) / ticks_per_sec);
+        int32_t fx = to_fixed((dir_x * force) / SERVER_TICK_RATE);
+        int32_t fy = to_fixed((dir_y * force) / SERVER_TICK_RATE);
 
         it->second.vel_x += fx;
         it->second.vel_y += fy;
 
+        /* RESTORE AND REMOVE DEBUG LATER
         std::cout << "[Gameplay] Knockback applied to " << target_id << " by " << source_id 
                   << " | Force: " << force << " | Duration: " << duration << "s\n";
+        */    
+
+        std::cout << "[DEBUG] Knockback: applied (" << fx << "," << fy 
+              << ") fixed = (" << to_world(fx) << "," << to_world(fy) 
+              << ") world/tick to entity " << target_id << "\n";
+
+        // alt debug
+        std::cout << "[DEBUG] ApplyKnockback: dir=(" << dir_x << "," << dir_y 
+          << "), force=" << force << ", ticks_per_sec=" << SERVER_TICK_RATE
+          << ", velocity_per_tick=" << velocity_per_tick 
+          << ", fx=" << fx << " (" << to_world(fx) << ")\n";
         return true;
     }
 
@@ -533,25 +556,34 @@ int main() {
         next_tick_time += nanoseconds(tick_ns);
         std::this_thread::sleep_until(next_tick_time);
 
+        std::cout << "\n[DEBUG] --- Tick " << i << " START ---\n";
+        for (auto const& kv : server.entities) {
+            auto const& e = kv.second;
+            std::cout << "Entity " << e.id << " Type: " << (e.type == EntityType::Character ? "CHR" : "PRJ") << " pos=(" << to_world(e.pos_x) 
+                    << "," << to_world(e.pos_y) << ") vel=(" 
+                    << to_world(e.vel_x) << "," << to_world(e.vel_y) << ")\n";
+        }
+
         // fails only on tick 0
         if (has_last) server.updatePrevBeforeFromSnapshot(last_sent_snap);
 
         Snapshot snap = server.tick();
-
+        /* (maybe just delete this) RESTORE AND REMOVE DEBUG LATER
         // Print status
         for (auto const& e : snap.entities) {
             std::cout << "[Tick " << snap.server_tick << "] Entity ID " << e.id
-                      << " Type: " << (e.type == EntityType::Character ? "PLR" : "PRJ")
+                      << " Type: " << (e.type == EntityType::Character ? "CHR" : "PRJ")
                       << " pos=(" << to_world(e.pos_x) << "," << to_world(e.pos_y) << ")"
                       << " vel=(" << to_world(e.vel_x) << "," << to_world(e.vel_y) << ")\n";
 
         auto full = serializeFull(snap);
         auto delta = serializeDelta(snap, server.getPrevBefore());
         std::cout << "  Serialized: full=" << full.size() << " bytes, delta=" << delta.size() << " bytes\n";
+         */
 
         last_sent_snap = snap;
         has_last = true;
-        }
+        // this included --> }
     }
     std::cout << "Demo finished.\n";
     return 0;
