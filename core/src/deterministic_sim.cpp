@@ -20,6 +20,9 @@
 #include <cstring>
 #include <cassert>
 #include <cmath>
+#include "net/packets.h"
+#include "client_input.h"
+#include "entity_state.h"
 
 // ---------- Config ----------
 constexpr int SERVER_TICK_RATE = 30; // 30t/s
@@ -34,63 +37,6 @@ inline int32_t to_fixed(float world_units) {
 inline float to_world(int32_t fixed) {
     return static_cast<float>(fixed) / POS_SCALE;
 }
-
-// ---------- Entity State ----------
-enum class EntityType : uint8_t {
-    Character = 0,
-    Projectile = 1
-};
-
-struct EntityState {
-    uint32_t id = 0;
-    EntityType type = EntityType::Character;
-    int32_t pos_x = 0; // fixed-point
-    int32_t pos_y = 0;
-    int32_t vel_x = 0; // fixed-point units PER SIMULATION TICK
-    int32_t vel_y = 0;
-    int32_t health = 0;
-    int32_t radius = 0;
-    int32_t lifetime_ticks = -1; // -1 = infinite; >0 = how many life ticks
-    uint8_t flags = 0;
-
-    constexpr EntityState() = default; // allows for compile-time instances of struct
-
-    // Callbacks (simplified for demo)
-    // ex.: std::string on_hit_callback; 
-
-    constexpr bool operator==(EntityState const& o) const {
-        return id == o.id &&
-               pos_x == o.pos_x &&
-               pos_y == o.pos_y &&
-               vel_x == o.vel_x &&
-               vel_y == o.vel_y &&
-               health == o.health &&
-               flags == o.flags &&
-               type == o.type;
-    }
-
-    constexpr bool operator!=(EntityState const& o) const {
-        return !(*this == o);
-    }
-};
-
-// ---------- Input ----------
-struct ClientInput {
-    uint32_t client_id;       // which client
-    uint32_t input_seq;       // should always increase (1... 2... 3...)
-    uint32_t target_tick;     // which server tick this input is for
-    int8_t move_dx;           // -127..127 (signed). Interpreted as normalized direction * 127.
-    int8_t move_dy;           // -127..127
-    uint8_t action_flags;     // bitmask (attack, cast, etc.)
-    uint16_t ability_id;      // optional: ability id
-    int32_t target_x;         // optional: fixed-point target pos
-    int32_t target_y;
-
-    ClientInput()
-        : client_id(0), input_seq(0), target_tick(0),
-          move_dx(0), move_dy(0), action_flags(0), ability_id(0),
-          target_x(0), target_y(0) {}
-};
 
 // ---------- InputQueue (circular, max 256) ----------
 class InputQueue {
@@ -309,6 +255,15 @@ public:
         // ensure a queue exists for this client
         auto &q = input_queues[in.client_id];
         return q.push(in);
+    }
+
+    void handleClientInputPacket(const ClientInputPacket& pkt) {
+        for (uint8_t i = 0; i < pkt.inputCount; i++) {
+            const ClientInput& input = pkt.inputs[i];
+            if (!input_queues[input.client_id].push(input)) {
+                printf("Warning: Input queue for client %u is full!\n", input.client_id);
+            }
+        }
     }
 
     // Gameplay API
