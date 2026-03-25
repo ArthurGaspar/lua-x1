@@ -75,7 +75,7 @@ Spawn a projectile; `params_table` must be a table with these fields (recommende
 * `speed` (number) — units/sec (required)
 * `radius` (number) — collision radius, world units (optional)
 * `life_time` (number) — seconds until auto-despawn (optional)
-* `on_hit_cb` (string) — name of a Lua callback (engine will call the global function `on_hit` with signature below); alternatively, engine can generate events consumed by scripts
+* `on_hit_cb` (string) — name of a Lua callback (engine will call the global function `on_hit` with signature below); alternatively, engine can generate events consumed by scripts (optional)
 * `tags` (table) — optional metadata
 
 **Return**: integer projectile id on success.
@@ -100,26 +100,6 @@ The engine will create a projectile entity and run collision checks each tick. I
 function OnProjectileHit_Fireball(projectile_id, target_entity_id)
   -- implement behavior
   -- just an example of function
-end
-```
-
----
-
-### `RegisterTimer(callback_name, delay_seconds, repeat_count)`
-
-Helper to schedule future Lua callbacks. (Engine must implement scheduling; callbacks are invoked on the main tick thread.)
-
-**Example**
-
-```lua
-RegisterTimer("ExplodeDelayed", 1.5, 1)
-```
-
-Callback signature:
-
-```lua
-function ExplodeDelayed(context_table)
-  -- context_table will include fields the engine provided (like caster, pos, etc.)
 end
 ```
 

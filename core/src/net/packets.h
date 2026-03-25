@@ -3,6 +3,8 @@
 #include <cstring>
 #include <vector>
 #include <cassert>
+#include "../client_input.h"
+#include "../entity_state.h"
 
 #pragma pack(push, 1)
 
@@ -84,34 +86,13 @@ struct BufferReader
 };
 
 // --------------------------------------------------------------
-//  BASIC ENTITY STATE
-// --------------------------------------------------------------
-struct EntityState
-{
-    uint32_t id;
-    float x;
-    float y;
-    float vx;
-    float vy;
-
-    bool operator!=(const EntityState& other) const
-    {
-        return id != other.id ||
-            x != other.x ||
-            y != other.y ||
-            vx != other.vx ||
-            vy != other.vy;
-    }
-};
-
-// --------------------------------------------------------------
 //  CLIENT INPUT PACKET
 // --------------------------------------------------------------
 struct ClientInputPacket
 {
     PacketHeader header;
     uint8_t inputCount;      // number of inputs
-    uint8_t inputs[256];     // raw input bytes (max 256)
+    ClientInput inputs[32];
 
     ClientInputPacket() : inputCount(0)
     {
@@ -119,9 +100,9 @@ struct ClientInputPacket
         header.size = sizeof(ClientInputPacket);
     }
 
-    void addInput(uint8_t i)
+    void addInput(const ClientInput& i)
     {
-        if (inputCount < 256)
+        if (inputCount < 32)
             inputs[inputCount++] = i;
     }
 };
@@ -220,34 +201,32 @@ inline void serializeDeltaSnapshot(
         const auto& A = before[i];
         const auto& B = after[i];
 
-        uint8_t entityMask = 0;
+        if (A == B) continue; 
 
-        if (A.x != B.x)   entityMask |= (1 << 0);
-        if (A.y != B.y)   entityMask |= (1 << 1);
-        if (A.vx != B.vx) entityMask |= (1 << 2);
-        if (A.vy != B.vy) entityMask |= (1 << 3);
-        if (A.id != B.id) entityMask |= (1 << 4);
-
-        if (entityMask == 0) {
-            continue; 
-        }
+        uint16_t entityMask = 0;
+        if (A.pos_x != B.pos_x)   entityMask |= (1 << 0);
+        if (A.pos_y != B.pos_y)   entityMask |= (1 << 1);
+        if (A.vel_x != B.vel_x)   entityMask |= (1 << 2);
+        if (A.vel_y != B.vel_y)   entityMask |= (1 << 3);
+        if (A.health != B.health) entityMask |= (1 << 4);
+        if (A.flags != B.flags)   entityMask |= (1 << 5);
+        if (A.type != B.type)     entityMask |= (1 << 6);
+        if (A.id != B.id)         entityMask |= (1 << 7);
+        if (A.radius != B.radius) entityMask |= (1 << 8);
+        // lifetime_ticks has not been added here for now
 
         w.write((uint16_t)i);
         w.write(entityMask);
 
-        // Bit layout:
-        // bit 0 = x changed
-        // bit 1 = y changed
-        // bit 2 = vx changed
-        // bit 3 = vy changed
-        // bit 4 = id changed  (rare)
-        // With more fields this should be extended, as well as the size of bit
-
-        if (entityMask & (1 << 0)) w.write(B.x);
-        if (entityMask & (1 << 1)) w.write(B.y);
-        if (entityMask & (1 << 2)) w.write(B.vx);
-        if (entityMask & (1 << 3)) w.write(B.vy);
-        if (entityMask & (1 << 4)) w.write(B.id);
+        if (entityMask & (1 << 0)) w.write(B.pos_x);
+        if (entityMask & (1 << 1)) w.write(B.pos_y);
+        if (entityMask & (1 << 2)) w.write(B.vel_x);
+        if (entityMask & (1 << 3)) w.write(B.vel_y);
+        if (entityMask & (1 << 4)) w.write(B.health);
+        if (entityMask & (1 << 5)) w.write(B.flags);
+        if (entityMask & (1 << 6)) w.write(B.type);
+        if (entityMask & (1 << 7)) w.write(B.id);
+        if (entityMask & (1 << 8)) w.write(B.radius);
 
         pkt.entityCount++;
     }

@@ -21,7 +21,6 @@ struct LuaBridge {
     static int l_ApplyDamage(lua_State* L);
     static int l_ApplyKnockback(lua_State* L);
     static int l_SpawnProjectile(lua_State* L);
-    static int l_RegisterTimer(lua_State* L);
 
     // helpers for reading tables
     static bool checkFieldNumber(lua_State* L, int idx, const char* key, double &out);
