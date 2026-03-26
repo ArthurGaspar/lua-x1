@@ -1,10 +1,3 @@
--- NEW --
-
-local FIREBALL_DAMAGE = 120
-local FIREBALL_SPEED = 360.0
-local FIREBALL_RADIUS = 1.5
-local FIREBALL_LIFETIME = 4.0
-
 function cast(caster_id, target_x, target_y)
     print(string.format("[Lua] %d casts Fireball at (%.2f, %.2f)", caster_id, target_x, target_y))
 
@@ -21,13 +14,18 @@ function cast(caster_id, target_x, target_y)
     if len == 0 then dx, dy = 1, 0; len = 1 end
     dx, dy = dx/len, dy/len
 
+    local getDmg = Engine_GetAbilityStat("fireball_test", "damage")
+    local getSpeed = Engine_GetAbilityStat("fireball_test", "speed")
+    local getRadius = Engine_GetAbilityStat("fireball_test", "radius")
+    local getLifetime = Engine_GetAbilityStat("fireball_test", "lifetime")
+
     local proj_id, err = SpawnProjectile({
         caster = caster_id, -- req
         pos = {x = sx, y = sy},
         dir = {x = dx, y = dy}, -- req (could be target instead)
-        speed = FIREBALL_SPEED, -- req
-        radius = FIREBALL_RADIUS,
-        life_time = FIREBALL_LIFETIME,
+        speed = getSpeed, -- req
+        radius = getRadius,
+        life_time = getLifetime,
         on_hit = "OnProjectileHit_Fireball"
     })
 

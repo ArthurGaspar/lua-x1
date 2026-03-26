@@ -2,7 +2,7 @@
 // Build: mkdir build
 // cd build
 // cmake ..
-// cmake --build . --config DemoSim
+// cmake --build . --config Release
 // (ON ROOT OF THE PROJECT)
 //
 // This demo shows:
@@ -23,10 +23,14 @@
 #include <cstring>
 #include <cassert>
 #include <cmath>
+#include <fstream>
 #include "net/packets.h"
 #include "client_input.h"
 #include "entity_state.h"
 #include "lua_bridge.h"
+#include "../../vendor/cpp/nlohmann/json.hpp"
+
+using json = nlohmann::json;
 
 // ---------- Config ----------
 constexpr int SERVER_TICK_RATE = 30; // 30t/s
@@ -260,6 +264,7 @@ private:
     std::vector<SimEvent> event_queue;
     std::unordered_map<uint32_t, EntityState> prev_snapshot_map; // For delta calc
     std::unordered_map<uint32_t, EntityState> prev_snapshot_map_before_tick;
+    std::unordered_map<std::string, std::unordered_map<std::string, float>> ability_stats;
 
 public:
     DemoServer() : server_tick(0), next_entity_id(1001) {
@@ -282,6 +287,39 @@ public:
 
         entity_tick_table[EntityType::Character] = simulateCharacterTick;
         entity_tick_table[EntityType::Projectile] = simulateProjectileTick;
+
+        LoadGameDefs();
+    }
+
+    void LoadGameDefs() {
+        std::string filepath = "game/game_defs.json";
+        std::ifstream f(filepath);
+
+        if (!f.is_open()) {
+            filepath = "../../game/game_defs.json";
+            f.open(filepath);
+        }
+
+        if (!f.is_open()) {
+            std::cerr << "[Error] Could not open " << filepath << "\n";
+            return;
+        }
+
+        json data = json::parse(f);
+
+        for (auto& [ability_key, ability_data] : data["abilities"].items()) {
+            
+            if (ability_data.contains("stats")) {
+                auto stats = ability_data["stats"];
+                
+                if (stats.contains("damage")) ability_stats[ability_key]["damage"] = stats["damage"];
+                if (stats.contains("speed")) ability_stats[ability_key]["speed"] = stats["speed"];
+                if (stats.contains("radius")) ability_stats[ability_key]["radius"] = stats["radius"];
+                if (stats.contains("lifetime")) ability_stats[ability_key]["lifetime"] = stats["lifetime"];
+                
+                std::cout << "[Gameplay] Loaded stats for ability: " << ability_key << "\n";
+            }
+        }
     }
 
     ~DemoServer() {
@@ -327,6 +365,10 @@ public:
     }
 
     // Gameplay API
+
+    float GetAbilityStat(const char* ability_id, const char* stat_name) {
+        return ability_stats[ability_id][stat_name]; 
+    }
 
     // it = entities.find(id) which is key
     // second... = specific value
@@ -503,6 +545,11 @@ bool Engine_ApplyKnockback(int source_id, int target_id, float dir_x, float dir_
 int Engine_SpawnProjectile(int caster_id, float spawn_x, float spawn_y, float dir_x, float dir_y, float speed, float radius, float life_time, const char* on_hit_cb) {
     if (!DemoServer::GetInstance()) return -1;
     return DemoServer::GetInstance()->SpawnProjectile(caster_id, spawn_x, spawn_y, dir_x, dir_y, speed, radius, life_time);
+}
+
+float Engine_GetAbilityStat(const char* ability_id, const char* stat_name) {
+        if (!DemoServer::GetInstance()) return 0.0f;
+        return DemoServer::GetInstance()->GetAbilityStat(ability_id, stat_name);
 }
 
 }
