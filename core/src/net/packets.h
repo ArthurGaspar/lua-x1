@@ -209,7 +209,7 @@ inline void serializeDeltaSnapshot(
         if (A.vel_x != B.vel_x)   entityMask |= (1 << 2);
         if (A.vel_y != B.vel_y)   entityMask |= (1 << 3);
         if (A.health != B.health) entityMask |= (1 << 4);
-        if (A.flags != B.flags)   entityMask |= (1 << 5);
+        if (A.status_flags != B.status_flags)   entityMask |= (1 << 5);
         if (A.type != B.type)     entityMask |= (1 << 6);
         if (A.id != B.id)         entityMask |= (1 << 7);
         if (A.radius != B.radius) entityMask |= (1 << 8);
@@ -223,7 +223,7 @@ inline void serializeDeltaSnapshot(
         if (entityMask & (1 << 2)) w.write(B.vel_x);
         if (entityMask & (1 << 3)) w.write(B.vel_y);
         if (entityMask & (1 << 4)) w.write(B.health);
-        if (entityMask & (1 << 5)) w.write(B.flags);
+        if (entityMask & (1 << 5)) w.write(B.status_flags);
         if (entityMask & (1 << 6)) w.write(B.type);
         if (entityMask & (1 << 7)) w.write(B.id);
         if (entityMask & (1 << 8)) w.write(B.radius);

@@ -10,7 +10,9 @@
         "mana": 300,
         "armor": 28,
         "magicResist": 32,
-        "moveSpeed": 335
+        "moveSpeed": 335,
+        "cooldownReduction": 0.05, 
+        "vampirism": 0.10
       },
       "abilities": ["fireball_test", "blink_test", "test_arcane_shield", "test_ultimate_overload"]
     },
@@ -70,6 +72,7 @@
       "script": "abilities/fireball_test.lua",
       "stats": {
         "damage": 120,
+        "damageType": "Magical",
         "speed": 360.0,
         "radius": 1.5,
         "lifetime": 4.0

@@ -1,6 +1,14 @@
 #pragma once
 #include <cstdint>
 
+enum class ActionFlags : uint8_t {
+    None         = 0,
+    Move         = 1 << 0,
+    AttackMove   = 1 << 1, // "A" key
+    CastAbility  = 1 << 2,
+    Stop         = 1 << 3  // "H" key
+};
+
 struct ClientInput {
     uint32_t client_id;       // which client
     uint32_t input_seq;       // should always increase (1... 2... 3...)

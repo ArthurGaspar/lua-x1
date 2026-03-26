@@ -24,11 +24,12 @@
 #include <cassert>
 #include <cmath>
 #include <fstream>
+#include "../../vendor/cpp/nlohmann/json.hpp"
 #include "net/packets.h"
 #include "client_input.h"
+#include "combat.h"
 #include "entity_state.h"
 #include "lua_bridge.h"
-#include "../../vendor/cpp/nlohmann/json.hpp"
 
 using json = nlohmann::json;
 
@@ -123,7 +124,7 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
         write_i32(out, e.vel_x);
         write_i32(out, e.vel_y);
         write_i32(out, e.health);
-        write_u8(out, e.flags);
+        write_u8(out, e.status_flags);
     }
     return out;
 }
@@ -151,7 +152,7 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
             if (e.vel_x != prev.vel_x) mask |= CH_VelX;
             if (e.vel_y != prev.vel_y) mask |= CH_VelY;
             if (e.health != prev.health) mask |= CH_Health;
-            if (e.flags != prev.flags) mask |= CH_Flags;
+            if (e.status_flags != prev.status_flags) mask |= CH_Flags;
             if (mask == 0) continue;
         }
         write_u32(out, e.id);
@@ -161,7 +162,7 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
         if (mask & CH_VelX) write_i32(out, e.vel_x);
         if (mask & CH_VelY) write_i32(out, e.vel_y);
         if (mask & CH_Health) write_i32(out, e.health);
-        if (mask & CH_Flags) write_u8(out, e.flags);
+        if (mask & CH_Flags) write_u8(out, e.status_flags);
 
         ++entity_count;
     }
@@ -280,7 +281,7 @@ public:
         e.vel_x = 0;
         e.vel_y = 0;
         e.health = 100;
-        e.flags = 0;
+        e.status_flags = 0;
         e.radius = to_fixed(0.5f);
         entities[e.id] = e;
         prev_snapshot_map.clear();
