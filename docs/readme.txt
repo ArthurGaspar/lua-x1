@@ -16,6 +16,7 @@
 /core/src/net/socket_udp.h	# wrapper for creating and managing low-level UDP sockets
 /core/src/platform	# platform-specific code (Windows for now)
 /core/src/client_input.h    # headers for client input
+/core/src/combat.h  # combat system headers
 /core/src/deterministic_sim.cpp # a simulation of the tick structure
 /core/src/engine.cpp	# engine bootstrap, tick loop
 /core/src/engine.h	# engine bootstrap, tick loop

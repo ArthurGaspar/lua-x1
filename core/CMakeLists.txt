@@ -16,6 +16,7 @@
 add_executable(deterministic_sim_demo
     src/deterministic_sim.cpp
     src/lua_bridge.cpp
+    src/physics.cpp
 )
 
 target_include_directories(deterministic_sim_demo PRIVATE

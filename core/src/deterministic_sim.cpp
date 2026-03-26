@@ -24,11 +24,13 @@
 #include <cassert>
 #include <cmath>
 #include <fstream>
+#include "../../vendor/cpp/nlohmann/json.hpp"
 #include "net/packets.h"
 #include "client_input.h"
+#include "combat.h"
 #include "entity_state.h"
 #include "lua_bridge.h"
-#include "../../vendor/cpp/nlohmann/json.hpp"
+#include "physics.h"
 
 using json = nlohmann::json;
 
@@ -123,7 +125,7 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
         write_i32(out, e.vel_x);
         write_i32(out, e.vel_y);
         write_i32(out, e.health);
-        write_u8(out, e.flags);
+        write_u8(out, e.status_flags);
     }
     return out;
 }
@@ -151,7 +153,7 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
             if (e.vel_x != prev.vel_x) mask |= CH_VelX;
             if (e.vel_y != prev.vel_y) mask |= CH_VelY;
             if (e.health != prev.health) mask |= CH_Health;
-            if (e.flags != prev.flags) mask |= CH_Flags;
+            if (e.status_flags != prev.status_flags) mask |= CH_Flags;
             if (mask == 0) continue;
         }
         write_u32(out, e.id);
@@ -161,7 +163,7 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
         if (mask & CH_VelX) write_i32(out, e.vel_x);
         if (mask & CH_VelY) write_i32(out, e.vel_y);
         if (mask & CH_Health) write_i32(out, e.health);
-        if (mask & CH_Flags) write_u8(out, e.flags);
+        if (mask & CH_Flags) write_u8(out, e.status_flags);
 
         ++entity_count;
     }
@@ -265,11 +267,15 @@ private:
     std::unordered_map<uint32_t, EntityState> prev_snapshot_map; // For delta calc
     std::unordered_map<uint32_t, EntityState> prev_snapshot_map_before_tick;
     std::unordered_map<std::string, std::unordered_map<std::string, float>> ability_stats;
+    std::unordered_map<std::string, std::unordered_map<std::string, float>> character_stats;
+    SpatialGrid grid;
 
 public:
     DemoServer() : server_tick(0), next_entity_id(1001) {
         s_instance = this;
-        luaBridge.doFile("game/scripts/abilities/fireball_test.lua");
+        luaBridge.doFile("../../../game/scripts/abilities/fireball_test.lua");
+
+        LoadGameDefs();
 
         // First char
         EntityState e;
@@ -279,16 +285,14 @@ public:
         e.pos_y = to_fixed(0.0f);
         e.vel_x = 0;
         e.vel_y = 0;
-        e.health = 100;
-        e.flags = 0;
+        e.health = character_stats.count("hero_test") ? static_cast<int32_t>(character_stats["hero_test"]["hp"]) : 650;
+        e.status_flags = 0;
         e.radius = to_fixed(0.5f);
         entities[e.id] = e;
         prev_snapshot_map.clear();
 
         entity_tick_table[EntityType::Character] = simulateCharacterTick;
         entity_tick_table[EntityType::Projectile] = simulateProjectileTick;
-
-        LoadGameDefs();
     }
 
     void LoadGameDefs() {
@@ -296,7 +300,7 @@ public:
         std::ifstream f(filepath);
 
         if (!f.is_open()) {
-            filepath = "../../game/game_defs.json";
+            filepath = "../../../game/game_defs.json";
             f.open(filepath);
         }
 
@@ -318,6 +322,18 @@ public:
                 if (stats.contains("lifetime")) ability_stats[ability_key]["lifetime"] = stats["lifetime"];
                 
                 std::cout << "[Gameplay] Loaded stats for ability: " << ability_key << "\n";
+            }
+
+            if (data.contains("characters")) {
+                for (auto& [char_key, char_data] : data["characters"].items()) {
+                    if (char_data.contains("baseStats")) {
+                        auto stats = char_data["baseStats"];
+                        if (stats.contains("hp")) character_stats[char_key]["hp"] = stats["hp"];
+                        if (stats.contains("armor")) character_stats[char_key]["armor"] = stats["armor"];
+                        if (stats.contains("magicResist")) character_stats[char_key]["magicResist"] = stats["magicResist"];
+                        std::cout << "[Gameplay] Loaded stats for character: " << char_key << "\n";
+                    }
+                }
             }
         }
     }
@@ -392,13 +408,27 @@ public:
         return true;
     }
 
-    bool ApplyDamage(int source_id, int target_id, int amount, const char* damage_type) {
+    bool ApplyDamage(int source_id, int target_id, int amount, const char* damage_type_str) {
         auto it = entities.find(target_id);
         if (it == entities.end()) return false;
         
-        it->second.health -= amount;
+        DamageType dt = DamageType::Absolute;
+        if (strcmp(damage_type_str, "magical") == 0 || strcmp(damage_type_str, "Magical") == 0) dt = DamageType::Magical;
+        else if (strcmp(damage_type_str, "physical") == 0 || strcmp(damage_type_str, "Physical") == 0) dt = DamageType::Physical;
+
+        // Fetch armor/mr directly from our loaded JSON stats
+        int32_t resist = 0;
+        if (dt == DamageType::Magical) resist = character_stats["hero_test"]["magicResist"];
+        else if (dt == DamageType::Physical) resist = character_stats["hero_test"]["armor"];
+
+        int32_t final_damage = CalculateFinalDamage(amount, resist, dt);
+
+        it->second.health -= final_damage;
         if (it->second.health < 0) it->second.health = 0;
-        std::cout << "[Gameplay] Entity " << target_id << " took " << amount << " dmg (" << damage_type << ") from Entity " << source_id << "\n";
+        
+        std::cout << "[Combat] Entity " << target_id << " took " << final_damage 
+                  << " final dmg (Raw: " << amount << ", Type: " << damage_type_str 
+                  << ") from Entity " << source_id << "\n";
         return true;
     }
 
@@ -450,7 +480,12 @@ public:
 
     // Run single tick
     Snapshot tick() {
-        // 1) gather all inputs for current tick for all clients and apply
+        // 1) clear-build spatial grid
+        grid.Clear();
+        for (auto const& kv : entities) {
+            grid.Insert(kv.second);
+        }
+        // 2) gather all inputs for current tick for all clients and apply
         for (auto &kv : input_queues) { // kv = key-value || kv.first is key, kv.second is value
             uint32_t client = kv.first;
             InputQueue &q = kv.second;
@@ -464,7 +499,7 @@ public:
             }
         }
 
-        // 2) simulate physics & logic for all entities
+        // 3) simulate physics & logic for all entities
         std::vector<uint32_t> to_remove;
         for (auto &kv : entities) {
             auto it_fn = entity_tick_table.find(kv.second.type);
@@ -472,22 +507,43 @@ public:
                 it_fn->second(kv.second);
             }
 
-            // lifetime check
-            if (kv.second.type == EntityType::Projectile && kv.second.lifetime_ticks == 0) {
-                 to_remove.push_back(kv.first);
+            // Projectile Collision Logic using Spatial Grid
+            if (kv.second.type == EntityType::Projectile) {
+                std::vector<uint32_t> nearby = grid.QueryRadius(kv.second.pos_x, kv.second.pos_y, kv.second.radius);
+                for (uint32_t other_id : nearby) {
+                    if (other_id == kv.first) continue; // Skip self
+                    
+                    auto other_it = entities.find(other_id);
+                    if (other_it != entities.end() && other_it->second.type == EntityType::Character) {
+                        if (SpatialGrid::CheckCollision(kv.second, other_it->second)) {
+                            std::cout << "[Physics] Grid detected collision between Proj " << kv.first << " and Char " << other_id << "\n";
+                            
+                            // Trigger Damage directly (simulating OnHit since Lua Bridge isn't fully wired)
+                            float dmg = GetAbilityStat("fireball_test", "damage");
+                            ApplyDamage(kv.first, other_id, static_cast<int>(dmg), "magical");
+                            
+                            kv.second.lifetime_ticks = 0; // Destroy projectile
+                            break; // Hit only one target
+                        }
+                    }
+                }
+
+                if (kv.second.lifetime_ticks <= 0) {
+                    to_remove.push_back(kv.first);
+                }
             }
         }
 
         for(auto id : to_remove) entities.erase(id);
         processEvents();
 
-        // 3) produce snapshot
+        // 4) produce snapshot
 
         Snapshot snap;
         snap.server_tick = server_tick;
         for (auto const& kv : entities) snap.entities.push_back(kv.second);
 
-        // 4) update prev_snapshot_map for delta next time
+        // 5) update prev_snapshot_map for delta next time
         prev_snapshot_map.clear();
         for (auto const& kv : entities) prev_snapshot_map[kv.first] = kv.second;
 
