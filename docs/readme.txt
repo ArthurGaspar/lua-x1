@@ -15,10 +15,12 @@
 /core/src/net/socket_udp.cpp	# wrapper for creating and managing low-level UDP sockets
 /core/src/net/socket_udp.h	# wrapper for creating and managing low-level UDP sockets
 /core/src/platform	# platform-specific code (Windows for now)
+/core/src/client_input.h    # headers for client input
 /core/src/deterministic_sim.cpp # a simulation of the tick structure
 /core/src/engine.cpp	# engine bootstrap, tick loop
 /core/src/engine.h	# engine bootstrap, tick loop
 /core/src/entity.h	# entity state, serialisation
+/core/src/entity_state.h    # headers for entities
 /core/src/lua_bridge.cpp	# bridges Lua and C++
 /core/src/lua_bridge.h	# bridges Lua and C++
 /core/src/lua.hpp   # externs C and includes some important lua libraries
@@ -34,6 +36,7 @@
 /docs/tech/lua_api.md   # lua API for game scripts
 /docs/architecture.md	# engine overview
 /docs/protocols.md	# network overview
+/docs/simulation.md # simulation model
 /game	# game-specific code + scripts
 /game/assets
 /game/assets/audio

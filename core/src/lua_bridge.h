@@ -1,5 +1,5 @@
 #pragma once
-#include <lua.hpp>
+#include "lua.hpp"
 #include <string>
 
 struct LuaBridge {
@@ -9,6 +9,7 @@ struct LuaBridge {
 
     // Load and execute Lua file
     bool doFile(const std::string &path);
+    bool callCastFunction(const std::string &fnName, int caster_id, float target_x, float target_y);
     // Specific Lua function for test (fireball-test)
     bool callCastFunction(const std::string &fnName, int caster_id, double target_x, double target_y);
 
@@ -24,5 +25,6 @@ struct LuaBridge {
 
     // helpers for reading tables
     static bool checkFieldNumber(lua_State* L, int idx, const char* key, double &out);
-    static bool checkFieldInt(lua_State* L, int idx, const char* key, int &out);
+    static bool checkFieldNumber(lua_State *L, int idx, const char *key, float &out);
+    static bool checkFieldInt(lua_State *L, int idx, const char *key, int &out);
 };

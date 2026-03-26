@@ -1,5 +1,8 @@
 // deterministic_sim.cpp
-// Build: ./vendor/mingw64/bin/g++ -std=c++17 core/src/deterministic_sim.cpp -O2 -pthread -o core/src/deterministic_sim.exe
+// Build: mkdir build
+// cd build
+// cmake ..
+// cmake --build . --config DemoSim
 // (ON ROOT OF THE PROJECT)
 //
 // This demo shows:
@@ -23,6 +26,7 @@
 #include "net/packets.h"
 #include "client_input.h"
 #include "entity_state.h"
+#include "lua_bridge.h"
 
 // ---------- Config ----------
 constexpr int SERVER_TICK_RATE = 30; // 30t/s
@@ -168,6 +172,19 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
     return out;
 }
 
+// ---------- Event System ----------
+enum class SimEventType {
+    CastAbility
+};
+
+struct SimEvent {
+    SimEventType type;
+    uint32_t caster_id;
+    uint16_t ability_id;
+    int32_t target_x;
+    int32_t target_y;
+};
+
 // ---------- Simple deterministic "physics" & logic ----------
 // For the demo: movement and simple velocity decay (friction). All integer arithmetic.
 
@@ -178,7 +195,7 @@ inline void write_i32(std::vector<uint8_t>& buf, int32_t v) { write_u32(buf, sta
 constexpr int32_t MAX_SPEED_FIXED_PER_TICK = static_cast<int32_t>( (5.0f * POS_SCALE) / SERVER_TICK_RATE );
 constexpr int32_t FRICTION_PER_TICK = 25; // 0.025 world units per tick drag
 
-void applyInputsToEntity(EntityState &e, std::vector<ClientInput> const& inputs) {
+void applyInputsToEntity(EntityState &e, std::vector<ClientInput> const& inputs, std::vector<SimEvent>& event_queue) {
     for (auto const& in : inputs) {
         if (in.move_dx != 0 || in.move_dy != 0) {
             int32_t nx = static_cast<int32_t>(in.move_dx); // -127..127
@@ -188,7 +205,16 @@ void applyInputsToEntity(EntityState &e, std::vector<ClientInput> const& inputs)
             e.vel_x = new_vx;
             e.vel_y = new_vy;
         }
-        // action_flags and ability casting would go here - for demo we ignore
+        if (in.action_flags != 0) {
+            SimEvent ev;
+            ev.type = SimEventType::CastAbility;
+            ev.caster_id = e.id;
+            ev.ability_id = in.ability_id;
+            ev.target_x = in.target_x;
+            ev.target_y = in.target_y;
+
+            event_queue.push_back(ev);
+        }
     }
 }
 
@@ -198,15 +224,21 @@ inline int32_t approach_zero(int32_t current_val, int32_t amount) {
     return 0;
 }
 
-void simulateEntityTick(EntityState &e) {
+void simulateCharacterTick(EntityState &e) {
     e.pos_x += e.vel_x;
     e.pos_y += e.vel_y;
-    
-    // Friction to character only. Projectiles fly constantly
-    if (e.type == EntityType::Character) {
-        e.vel_x = approach_zero(e.vel_x, FRICTION_PER_TICK);
-        e.vel_y = approach_zero(e.vel_y, FRICTION_PER_TICK);
+
+    e.vel_x = approach_zero(e.vel_x, FRICTION_PER_TICK);
+    e.vel_y = approach_zero(e.vel_y, FRICTION_PER_TICK);
+
+    if (e.lifetime_ticks > 0) {
+        e.lifetime_ticks--;
     }
+}
+
+void simulateProjectileTick(EntityState &e) {
+    e.pos_x += e.vel_x;
+    e.pos_y += e.vel_y;
 
     if (e.lifetime_ticks > 0) {
         e.lifetime_ticks--;
@@ -217,17 +249,22 @@ void simulateEntityTick(EntityState &e) {
 class DemoServer {
 private:
     static DemoServer* s_instance;
+    LuaBridge luaBridge;
+    using TickFn = void(*)(EntityState&);
 
     uint32_t server_tick;
     uint32_t next_entity_id; // ID Generator
     std::unordered_map<uint32_t, EntityState> entities;
+    std::unordered_map<EntityType, TickFn> entity_tick_table;
     std::unordered_map<uint32_t, InputQueue> input_queues;
+    std::vector<SimEvent> event_queue;
     std::unordered_map<uint32_t, EntityState> prev_snapshot_map; // For delta calc
     std::unordered_map<uint32_t, EntityState> prev_snapshot_map_before_tick;
 
 public:
     DemoServer() : server_tick(0), next_entity_id(1001) {
         s_instance = this;
+        luaBridge.doFile("game/scripts/abilities/fireball_test.lua");
 
         // First char
         EntityState e;
@@ -242,10 +279,33 @@ public:
         e.radius = to_fixed(0.5f);
         entities[e.id] = e;
         prev_snapshot_map.clear();
+
+        entity_tick_table[EntityType::Character] = simulateCharacterTick;
+        entity_tick_table[EntityType::Projectile] = simulateProjectileTick;
     }
 
     ~DemoServer() {
         if (s_instance == this) s_instance = nullptr;
+    }
+
+    void processEvents() {
+        for (auto &ev : event_queue) {
+            if (ev.type == SimEventType::CastAbility) {
+                // call Lua
+                luaBridge.callCastFunction(
+                    "cast",
+                    ev.caster_id,
+                    (double)ev.target_x,
+                    (double)ev.target_y
+                );
+            }
+        }
+
+        event_queue.clear();
+    }
+
+    void SimInit() {
+        // nothing for now (constructor already initializes)
     }
 
     // In a real engine, this would probably be connected to a UDP socket listener
@@ -358,14 +418,17 @@ public:
             uint32_t ent_id = 1001;
             auto it = entities.find(ent_id);
             if (it != entities.end() && !inputs.empty()) {
-                applyInputsToEntity(it->second, inputs);
+                applyInputsToEntity(it->second, inputs, event_queue);
             }
         }
 
         // 2) simulate physics & logic for all entities
         std::vector<uint32_t> to_remove;
         for (auto &kv : entities) {
-            simulateEntityTick(kv.second);
+            auto it_fn = entity_tick_table.find(kv.second.type);
+            if (it_fn != entity_tick_table.end()) {
+                it_fn->second(kv.second);
+            }
 
             // lifetime check
             if (kv.second.type == EntityType::Projectile && kv.second.lifetime_ticks == 0) {
@@ -374,6 +437,7 @@ public:
         }
 
         for(auto id : to_remove) entities.erase(id);
+        processEvents();
 
         // 3) produce snapshot
 

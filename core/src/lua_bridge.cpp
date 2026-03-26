@@ -8,6 +8,7 @@
 // Replace them with the engine functions from the deterministic_sim.cpp.
 // They are declared extern here can be implemented in engine code.
 
+extern "C" {
 extern bool Engine_GetPosition(int entity_id, float &out_x, float &out_y);
 extern bool Engine_SetMovement(int entity_id, float vx, float vy);
 extern bool Engine_ApplyDamage(int source_id, int target_id, int amount, const char* damage_type);
@@ -15,6 +16,7 @@ extern bool Engine_ApplyKnockback(int source_id, int target_id, float dir_x, flo
 
 // returns new projectile entity id (>0) or -1 on error
 extern int Engine_SpawnProjectile(int caster_id, float spawn_x, float spawn_y, float dir_x, float dir_y, float speed, float radius, float life_time, const char* on_hit_cb);
+}
 
 // -------------------------------------------------------------
 
@@ -85,6 +87,12 @@ bool LuaBridge::callCastFunction(const std::string &fnName, int caster_id, float
     return true;
 
 }
+
+// Double overload that delegates to the float version
+bool LuaBridge::callCastFunction(const std::string &fnName, int caster_id, double target_x, double target_y) {
+    return callCastFunction(fnName, caster_id, (float)target_x, (float)target_y);
+}
+
 
 // ------------------- Helpers --------------------
 
