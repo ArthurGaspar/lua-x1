@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "config.h"
 
 enum class EntityType : uint8_t {
     Character = 0,
@@ -40,6 +41,8 @@ struct EntityState {
     uint16_t status_flags = 0;
     uint8_t active_buff_count = 0;
     ActiveBuff buffs[8];
+    uint8_t party = 0; // team
+    int32_t visionRadius = to_fixed(10.0f);
 
     constexpr EntityState() = default;
 

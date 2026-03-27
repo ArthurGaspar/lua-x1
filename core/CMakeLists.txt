@@ -16,6 +16,7 @@
 add_executable(deterministic_sim_demo
     src/deterministic_sim.cpp
     src/lua_bridge.cpp
+    src/map.cpp
     src/physics.cpp
 )
 

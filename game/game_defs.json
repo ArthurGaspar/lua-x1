@@ -142,5 +142,25 @@
       "manaCost": 20,
       "script": "abilities/test_spark_bolt.lua"
     }
+  },
+
+  "maps": {
+    "map_test": {
+      "name": "Test Rift",
+      "width": 200,
+      "height": 200,
+      "lanes": [
+          {
+              "waypoints": [
+                  {"x": 10, "y": 50},
+                  {"x": 90, "y": 50}
+              ]
+          }
+      ],
+      "spawnPoints": [
+          {"x": 10, "y": 10, "party": 0},
+          {"x": 190, "y": 190, "party": 1}
+      ]
+    }
   }
 }

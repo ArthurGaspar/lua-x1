@@ -17,6 +17,7 @@
 /core/src/platform	# platform-specific code (Windows for now)
 /core/src/client_input.h    # headers for client input
 /core/src/combat.h  # combat system headers
+/core/src/config.h  # server main configurations and constants
 /core/src/deterministic_sim.cpp # a simulation of the tick structure
 /core/src/engine.cpp	# engine bootstrap, tick loop
 /core/src/engine.h	# engine bootstrap, tick loop
@@ -26,6 +27,8 @@
 /core/src/lua_bridge.h	# bridges Lua and C++
 /core/src/lua.hpp   # externs C and includes some important lua libraries
 /core/src/main.cpp	# loads engine, initializes subsystems and enters game loop
+/core/src/map.cpp    # map loading and management
+/core/src/map.h    # map loading and management
 /core/src/physics.h
 /core/src/physics.cpp
 /core/src/tick.cpp
@@ -53,6 +56,7 @@
 /game/assets/maps/map_a_test
 /game/assets/maps/map_a_test/models
 /game/assets/maps/map_a_test/textures
+/game/assets/maps/map_a_test/map.json   # map definition file, with spawn points, walkable grid, etc
 /game/assets/ui
 /game/assets/ui/fonts
 /game/assets/ui/images

@@ -28,25 +28,13 @@
 #include "net/packets.h"
 #include "client_input.h"
 #include "combat.h"
+#include "config.h"
 #include "entity_state.h"
 #include "lua_bridge.h"
+#include "map.h"
 #include "physics.h"
 
 using json = nlohmann::json;
-
-// ---------- Config ----------
-constexpr int SERVER_TICK_RATE = 30; // 30t/s
-constexpr uint64_t TICK_NS = 1000000000ull / SERVER_TICK_RATE; // 33,333,333 ns (approx)
-constexpr int32_t POS_SCALE = 1000; // fixed-point scale: 1.0 world unit = 1000 units
-constexpr size_t MAX_CLIENT_INPUT_QUEUE = 256;
-
-// ---------- Fixed-point helpers ----------
-inline int32_t to_fixed(float world_units) {
-    return static_cast<int32_t>(world_units * POS_SCALE);
-}
-inline float to_world(int32_t fixed) {
-    return static_cast<float>(fixed) / POS_SCALE;
-}
 
 // ---------- InputQueue (circular, max 256) ----------
 class InputQueue {
@@ -256,6 +244,7 @@ class DemoServer {
 private:
     static DemoServer* s_instance;
     LuaBridge luaBridge;
+    Map map;
     using TickFn = void(*)(EntityState&);
 
     uint32_t server_tick;
@@ -276,6 +265,15 @@ public:
         luaBridge.doFile("../../../game/scripts/abilities/fireball_test.lua");
 
         LoadGameDefs();
+
+        // Load the map
+        std::string mapPath = "../../../game/assets/maps/map_a_test/map.json";
+        if (!map.loadFromJSON(mapPath)) {
+            mapPath = "game/assets/maps/map_a_test/map.json";
+        }
+        if (!map.loadFromJSON(mapPath)) {
+            std::cerr << "[Error] Failed to load map from: " << mapPath << std::endl;
+        }
 
         // First char
         EntityState e;
