@@ -3,6 +3,8 @@
 /build/obj	# compiler temp output and intermediate files
 /core	# core C++ engine
 /core/include	# public C++ headers to be used across projects
+/core/include/dll_input_queue.h    # headers for input queue, used for C# interop
+/core/include/game_engine_api.h    # headers for C# interop
 /core/src	# engine source code
 /core/src/engine	# core specific folders
 /core/src/engine/graphics
@@ -15,9 +17,11 @@
 /core/src/net/socket_udp.cpp	# wrapper for creating and managing low-level UDP sockets
 /core/src/net/socket_udp.h	# wrapper for creating and managing low-level UDP sockets
 /core/src/platform	# platform-specific code (Windows for now)
+/core/src/camera.h  # camera management
 /core/src/client_input.h    # headers for client input
 /core/src/combat.h  # combat system headers
 /core/src/config.h  # server main configurations and constants
+/core/src/debug_renderer.h  # debug rendering utilities
 /core/src/deterministic_sim.cpp # a simulation of the tick structure
 /core/src/engine.cpp	# engine bootstrap, tick loop
 /core/src/engine.h	# engine bootstrap, tick loop
@@ -33,12 +37,15 @@
 /core/src/physics.cpp
 /core/src/tick.cpp
 /core/src/tick.h
+/core/src/ui_bridge.cpp    # bridges UI (C#) and C++
+/core/src/ui_bridge.h    # bridges UI (C#) and C++
 /core/CMakeLists.txt	# tells what files to compile
 /docs
 /docs/design	# game design documents (GDDs)
 /docs/tech	# technical architecture docs
 /docs/tech/lua_api.md   # lua API for game scripts
 /docs/architecture.md	# engine overview
+/docs/buildCommands.md    # how to build the project
 /docs/protocols.md	# network overview
 /docs/simulation.md # simulation model
 /game	# game-specific code + scripts
@@ -80,6 +87,7 @@
 /tools	# dev editors & dev tools
 /tools/csharp	# C# tools, like map editor and asset manager
 /tools/csharp/CharAbilityEditor # loads definitions and can export scripts to game folder
+/tools/csharp/MonoUI    # WPF/.NET MAUI basic UI for the project
 /tools/csharp/SimPreview    # can preview characters and abilities
 /tools/editor	# main C# map/ability editor (WPF/.NET MAUI)
 /tools/pipeline	# converts things, compress textures, engine format conversions

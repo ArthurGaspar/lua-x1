@@ -6,6 +6,8 @@ java/
 libs/
 tools/csharp/CharAbilityEditor/bin
 tools/csharp/CharAbilityEditor/obj
+tools/csharp/MonoUi/bin
+tools/csharp/MonoUi/obj
 tools/csharp/SimPreview/bin
 tools/csharp/SimPreview/obj
 vendor/

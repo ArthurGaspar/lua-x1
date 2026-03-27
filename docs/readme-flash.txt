@@ -45,6 +45,7 @@
 /tools	# dev editors & dev tools
 /tools/csharp	# C# tools, like map editor and asset manager
 /tools/csharp/CharAbilityEditor # loads definitions and can export scripts to game folder
+/tools/csharp/MonoUI    # WPF/.NET MAUI basic UI for the project
 /tools/csharp/SimPreview    # can preview characters and abilities
 /tools/editor	# main C# map/ability editor (WPF/.NET MAUI)
 /tools/pipeline	# converts things, compress textures, engine format conversions
